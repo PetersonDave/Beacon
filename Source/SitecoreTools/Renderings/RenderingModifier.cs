@@ -16,7 +16,7 @@ namespace SitecoreTools.Renderings
 		public RenderingModifier(bool editMode, string database)
 		{
 			bool isDatabaseValid = !string.IsNullOrEmpty(database);
-			if (isDatabaseValid)
+			if (!isDatabaseValid)
 			{
 				throw new ArgumentNullException(database);
 			}
@@ -77,7 +77,7 @@ namespace SitecoreTools.Renderings
 		private void ProcessItem(Item item)
 		{
 			bool isLayoutFieldValid = !string.IsNullOrEmpty(item[Sitecore.FieldIDs.LayoutField]);
-			if (isLayoutFieldValid)
+			if (!isLayoutFieldValid)
 			{
 				return;
 			}
