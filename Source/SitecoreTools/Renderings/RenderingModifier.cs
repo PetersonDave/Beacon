@@ -33,10 +33,16 @@ namespace SitecoreTools.Renderings
 
         private RenderingModifier(RenderingModifierSettings renderingModifierSettings)
 		{
+            SetRenderingModifierSettings(renderingModifierSettings);
+            _db = Database.GetDatabase(RenderingModifierSettings.Database);
+            Assert.ArgumentCondition(_db != null, "renderingModifierSettings.Database", string.Format("Database {0} is not a valid database name", RenderingModifierSettings.Database));
+        }
+
+        private void SetRenderingModifierSettings(RenderingModifierSettings renderingModifierSettings)
+        {
             Assert.ArgumentNotNull(renderingModifierSettings, "renderingModifierSettings");
             Assert.ArgumentNotNullOrEmpty(renderingModifierSettings.Database, "renderingModifierSettings.Database");
-            _db = Database.GetDatabase(renderingModifierSettings.Database);
-            Assert.ArgumentCondition(_db != null, "renderingModifierSettings.Database", string.Format("Database {0} is not a valid database name", renderingModifierSettings.Database));
+            RenderingModifierSettings = renderingModifierSettings;
         }
 
 		//var renderingId = new ID("34180A33-145B-47F6-B958-360F32DBFD7D");
