@@ -1,73 +1,71 @@
-﻿using System;
+﻿using System.Collections.Generic;
 using Sitecore.Data;
 using Sitecore.Data.Fields;
 using Sitecore.Data.Items;
 using Sitecore.Diagnostics;
 using Sitecore.Layouts;
-
-using SitecoreTools.Renderings.DTO;
 using SitecoreTools.Renderings.Base;
+using SitecoreTools.Renderings.DTO;
 
 namespace SitecoreTools.Renderings
 {
-    public class RenderingModifier : IRenderingModifier
+	public class RenderingModifier : IRenderingModifier
 	{
-        private RenderingModifierSettings RenderingModifierSettings { get; set; }
-
-		public bool IsEditMode 
-        {
-            get
-            {
-                return RenderingModifierSettings.EditMode;
-            }
-        }
-
-		private readonly Database _db;
-		private ID _renderingId;
-		private ID _datasourceId;
-
-		private RenderingModifier(bool editMode, string database)
-            : this(CreateNewRenderingModifierSettings(editMode, database))
+		public class ProcessingResult
 		{
+			public string Path { get; set; }
+			public bool Updated { get; set; }
 		}
 
-        private RenderingModifier(RenderingModifierSettings renderingModifierSettings)
+		private RenderingModifierSettings RenderingModifierSettings { get; set; }
+		public bool IsEditMode 
 		{
-            SetRenderingModifierSettings(renderingModifierSettings);
-            _db = Database.GetDatabase(RenderingModifierSettings.Database);
-            Assert.ArgumentCondition(_db != null, "renderingModifierSettings.Database", string.Format("Database {0} is not a valid database name", RenderingModifierSettings.Database));
-        }
+			get
+			{
+				return RenderingModifierSettings.EditMode;
+			}
+		}
 
-        private void SetRenderingModifierSettings(RenderingModifierSettings renderingModifierSettings)
-        {
-            Assert.ArgumentNotNull(renderingModifierSettings, "renderingModifierSettings");
-            Assert.ArgumentNotNullOrEmpty(renderingModifierSettings.Database, "renderingModifierSettings.Database");
-            RenderingModifierSettings = renderingModifierSettings;
-        }
-
-		//var renderingId = new ID("34180A33-145B-47F6-B958-360F32DBFD7D");
-		//var newDatasourceId = new ID("3DAAC978-9460-4C8F-86B2-74882CC28A41");
-		public void ChangeDatasourceForRendering(Item startItem, ID renderingId, ID datasourceId)
+		private ID _renderingId;
+		private ID _datasourceId;
+		private Dictionary<ID, ProcessingResult> _processingResults = new Dictionary<ID, ProcessingResult>();
+		
+		public RenderingModifier(RenderingModifierSettings renderingModifierSettings)
 		{
-            Assert.ArgumentNotNull(startItem, "startItem");
-            Assert.ArgumentCondition(!Sitecore.Data.ID.IsNullOrEmpty(renderingId), "renderingId", "renderingId is not a valid Guid");
-            Assert.ArgumentCondition(!Sitecore.Data.ID.IsNullOrEmpty(datasourceId), "datasourceId", "datasourceId is not a valid Guid");
+			Assert.ArgumentNotNull(renderingModifierSettings, "renderingModifierSettings");
+			RenderingModifierSettings = renderingModifierSettings;
+		}
+
+		public Dictionary<ID, ProcessingResult> ChangeDatasourceForRendering(Item startItem, ID renderingId, ID datasourceId)
+		{
+			Assert.ArgumentNotNull(startItem, "startItem");
+			Assert.ArgumentCondition(!Sitecore.Data.ID.IsNullOrEmpty(renderingId), "renderingId", "renderingId is not a valid Guid");
+			Assert.ArgumentCondition(!Sitecore.Data.ID.IsNullOrEmpty(datasourceId), "datasourceId", "datasourceId is not a valid Guid");
 			
-            _renderingId = renderingId;
+			_renderingId = renderingId;
 			_datasourceId = datasourceId;
 
 			ProcessTree(startItem);
+
+			return _processingResults;
 		}
 
 		private void ProcessTree(Item item)
 		{
-            Assert.ArgumentNotNull(item, "item");
+			Assert.ArgumentNotNull(item, "item");
+
+			var pr = new ProcessingResult() {Path = item.Paths.ContentPath, Updated = false};
+			if (!_processingResults.ContainsKey(item.ID))
+			{
+				_processingResults.Add(item.ID, pr);
+			}
+			
 			ProcessItem(item);
 
-            if (RenderingModifierSettings.ProcessDescendants)
-            {
-                ProcessChildren(item);
-            }
+			if (RenderingModifierSettings.ProcessDescendants)
+			{
+				ProcessChildren(item);
+			}
 		}
 
 		private void ProcessItem(Item item)
@@ -78,87 +76,87 @@ namespace SitecoreTools.Renderings
 				return;
 			}
 
-            SetLayoutFieldValueIfNotStandardValue(item);
+			var layoutField = item.Fields[Sitecore.FieldIDs.LayoutField];
+			if (!layoutField.ContainsStandardValue)
+			{
+				var layoutFieldValue = GetLayoutFieldValue(layoutField);
+				var theLayout = GetLayoutDefinition(layoutFieldValue);
+				SetLayoutFieldValueIfValidDevice(theLayout, item);
+			}
 		}
 
-        private void SetLayoutFieldValueIfNotStandardValue(Item item)
-        {
-            var layoutField = item.Fields[Sitecore.FieldIDs.LayoutField];
-            if (!layoutField.ContainsStandardValue)
-            {
-                var layoutFieldValue = LayoutField.GetFieldValue(layoutField);
-                var theLayout = LayoutDefinition.Parse(layoutFieldValue);
-                SetLayoutFieldValueIfValidDevice(theLayout, item);
-            }
-        }
+		public virtual string GetLayoutFieldValue(Field layoutField)
+		{
+			return LayoutField.GetFieldValue(layoutField);
+		}
 
-        private void SetLayoutFieldValueIfValidDevice(LayoutDefinition layoutDefinition, Item item)
-        {
-            bool isDeviceValid = layoutDefinition != null && layoutDefinition.Devices != null && layoutDefinition.Devices.Count > 0;
-            if (isDeviceValid)
-            {
-                var renderings = (layoutDefinition.Devices[0] as DeviceDefinition).Renderings;
+		public virtual LayoutDefinition GetLayoutDefinition(string layoutFieldValue)
+		{
+			return LayoutDefinition.Parse(layoutFieldValue);
+		}
 
-                foreach (RenderingDefinition rendering in renderings)
-                {
-                    SetLayoutFieldValueIfApplicable(rendering, layoutDefinition, item);
-                }
-            }
-        }
+		private void SetLayoutFieldValueIfValidDevice(LayoutDefinition layoutDefinition, Item item)
+		{
+			bool isDeviceValid = layoutDefinition != null && layoutDefinition.Devices != null && layoutDefinition.Devices.Count > 0;
+			if (isDeviceValid)
+			{
+				var renderings = (layoutDefinition.Devices[0] as DeviceDefinition).Renderings;
 
-        private void SetLayoutFieldValueIfApplicable(RenderingDefinition renderingDefinition, LayoutDefinition layoutDefinition, Item item)
-        {
-            if (renderingDefinition.ItemID == _renderingId.ToString())
-            {
-                SetLayoutFieldValueIfEditMode(renderingDefinition, layoutDefinition, item);
-            }
-        }
+				foreach (RenderingDefinition rendering in renderings)
+				{
+					SetLayoutFieldValueIfApplicable(rendering, layoutDefinition, item);
+				}
+			}
+		}
 
-        private void SetLayoutFieldValueIfEditMode(RenderingDefinition renderingDefinition, LayoutDefinition layoutDefinition, Item item)
-        {
-            if (IsEditMode)
-            {
-                SetLayoutFieldValue(renderingDefinition, layoutDefinition, item);
-            }
-        }
+		private void SetLayoutFieldValueIfApplicable(RenderingDefinition renderingDefinition, LayoutDefinition layoutDefinition, Item item)
+		{
+			if (renderingDefinition.ItemID == _renderingId.ToString())
+			{
+				SetLayoutFieldValueIfEditMode(renderingDefinition, layoutDefinition, item);
+			}
+		}
 
-        private void SetLayoutFieldValue(RenderingDefinition renderingDefinition, LayoutDefinition layoutDefinition, Item item)
-        {
-            Assert.ArgumentNotNull(item, "item");
+		private void SetLayoutFieldValueIfEditMode(RenderingDefinition renderingDefinition, LayoutDefinition layoutDefinition, Item item)
+		{
+			if (_processingResults.ContainsKey(item.ID))
+			{
+				_processingResults[item.ID].Updated = true;	
+			}
+			
+			if (IsEditMode)
+			{
+				SetLayoutFieldValue(renderingDefinition, layoutDefinition, item);
+			}
+		}
 
-            using (new Sitecore.Data.Items.EditContext(item))
-            {
-                renderingDefinition.Datasource = _datasourceId.ToString();
-                item[Sitecore.FieldIDs.LayoutField] = layoutDefinition.ToXml();
-            }
-        }
+		private void SetLayoutFieldValue(RenderingDefinition renderingDefinition, LayoutDefinition layoutDefinition, Item item)
+		{
+			Assert.ArgumentNotNull(item, "item");
 
-        private void ProcessChildren(Item parent)
-        {
-            if (parent.Children == null)
-            {
-                return;
-            }
+			using (new Sitecore.Data.Items.EditContext(item))
+			{
+				renderingDefinition.Datasource = _datasourceId.ToString();
+				item[Sitecore.FieldIDs.LayoutField] = layoutDefinition.ToXml();
+			}
+		}
 
-            foreach (Item i in parent.Children)
-            {
-                ProcessTree(i);
-            }
-        }
+		private void ProcessChildren(Item parent)
+		{
+			if (parent.Children == null)
+			{
+				return;
+			}
 
-        private static RenderingModifierSettings CreateNewRenderingModifierSettings(bool editMode, string database)
-        {
-            return new RenderingModifierSettings { EditMode = editMode, Database = database };
-        }
+			foreach (Item i in parent.Children)
+			{
+				ProcessTree(i);
+			}
+		}
 
-        public static IRenderingModifier CreateNewRenderingModifier(bool editMode, string database)
-        {
-            return new RenderingModifier(editMode, database);
-        }
-
-        public static IRenderingModifier CreateNewRenderingModifier(RenderingModifierSettings renderingModifierSettings)
-        {
-            return new RenderingModifier(renderingModifierSettings);
-        }
+		public static IRenderingModifier CreateNewRenderingModifier(RenderingModifierSettings renderingModifierSettings)
+		{
+			return new RenderingModifier(renderingModifierSettings);
+		}
 	}
 }

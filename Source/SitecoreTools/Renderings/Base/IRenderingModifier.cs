@@ -1,8 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-
+﻿using System.Collections.Generic;
 using Sitecore.Data;
 using Sitecore.Data.Items;
 
@@ -12,6 +8,6 @@ namespace SitecoreTools.Renderings.Base
     {
         bool IsEditMode { get; }
 
-        void ChangeDatasourceForRendering(Item startItem, ID renderingId, ID datasourceId);
+		Dictionary<ID, RenderingModifier.ProcessingResult> ChangeDatasourceForRendering(Item startItem, ID renderingId, ID datasourceId);
     }
 }
