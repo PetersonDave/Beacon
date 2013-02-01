@@ -4,20 +4,14 @@ using Sitecore.Data.Fields;
 using Sitecore.Data.Items;
 using Sitecore.Diagnostics;
 using Sitecore.Layouts;
+using Sitecore.Links;
 using SitecoreTools.Renderings.Base;
-using SitecoreTools.Renderings.DTO;
 
 namespace SitecoreTools.Renderings
 {
 	public class RenderingModifier : IRenderingModifier
 	{
-		public class ProcessingResult
-		{
-			public string Path { get; set; }
-			public bool Updated { get; set; }
-		}
-
-		private RenderingModifierSettings RenderingModifierSettings { get; set; }
+		private ModifierSettings RenderingModifierSettings { get; set; }
 		public bool IsEditMode 
 		{
 			get
@@ -29,8 +23,8 @@ namespace SitecoreTools.Renderings
 		private ID _renderingId;
 		private ID _datasourceId;
 		private Dictionary<ID, ProcessingResult> _processingResults = new Dictionary<ID, ProcessingResult>();
-		
-		public RenderingModifier(RenderingModifierSettings renderingModifierSettings)
+
+		public RenderingModifier(ModifierSettings renderingModifierSettings)
 		{
 			Assert.ArgumentNotNull(renderingModifierSettings, "renderingModifierSettings");
 			RenderingModifierSettings = renderingModifierSettings;
@@ -154,7 +148,7 @@ namespace SitecoreTools.Renderings
 			}
 		}
 
-		public static IRenderingModifier CreateNewRenderingModifier(RenderingModifierSettings renderingModifierSettings)
+		public static IRenderingModifier CreateNewRenderingModifier(ModifierSettings renderingModifierSettings)
 		{
 			return new RenderingModifier(renderingModifierSettings);
 		}

@@ -1,6 +1,6 @@
-﻿namespace SitecoreTools.Renderings.DTO
+﻿namespace SitecoreTools
 {
-    public class RenderingModifierSettings
+    public class ModifierSettings
     {
         public bool EditMode { get; set; }
         public bool ProcessDescendants { get; set; }

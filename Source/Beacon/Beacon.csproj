@@ -43,8 +43,12 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="Content\ContentModifier.cs" />
+    <Compile Include="Content\ContentModifierExample.cs" />
+    <Compile Include="ModifierBase.cs" />
+    <Compile Include="ModifierSettings.cs" />
     <Compile Include="Renderings\Base\IRenderingModifier.cs" />
-    <Compile Include="Renderings\DTO\RenderingModifierSettings.cs" />
+    <Compile Include="ProcessingResult.cs" />
     <Compile Include="Renderings\RenderingModifier.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
   </ItemGroup>
